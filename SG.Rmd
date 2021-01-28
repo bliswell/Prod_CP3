@@ -1,0 +1,110 @@
+---
+title: "Sierpinski Gaskets"
+author: "Brian Liswell"
+date: "1/28/2021"
+output: ioslides_presentation
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Sierpiński Gaskets from Random Numbers Controls
+
+This app will make a plot of Sierpiński fractals using the "rolling dice" technique.  The user selects the number of corners (3 to n), the number of dice rolls.
+
+To learn more about Sierpiński figures, see [Wikipedia](https://en.wikipedia.org/wiki/Sierpi%C5%84ski_triangle).
+For an example on how to generate them with a dice see [this Medium article](https://medium.com/however-mathematics/the-geometric-chaos-sierpinski-triangle-12b308d732fb)
+
+Controls:
+
+- Set the number of corners (3 is most common)
+- Chose the step size each point to the next
+-- Choose greather than 0.5 for squares
+-- Choosing greather than 1 creates crazy patterns
+- Choose the number of points, bearing in mind rendering time
+
+
+## Establish the Corners
+```{r corner_function, echo = TRUE}
+
+get_corners <- function(N_corners){
+        #divide a unit circle into N_corners points
+        inner_angle <- 2*pi/N_corners
+        theta <- seq(from = 0, to = 2*pi, by = inner_angle)
+        theta <- head(theta,-1) #drop the overlapping 0
+        #rotate theta by half an angle
+        if (N_corners%%2 > 0){   #odd 
+                theta <- theta + pi/2#0.75*inner_angle
+        }else{
+                theta <- theta + pi/N_corners
+        }
+        corners <- matrix(0,length(theta),2)
+        x_corner <- cos(theta)
+        y_corner <- sin(theta)
+        corners[,1] <- x_corner
+        corners[,2] <- y_corner
+        return(corners)
+}
+```
+
+## Make Steps
+```{r step_function, echo = TRUE}
+
+gasket_xy_pts <- function(corners,N_points, step_factor){
+        #generate the gasket x y coordinates
+        x_corner <- corners[,1]
+        y_corner <- corners[,2]
+        N_corners <- length(x_corner)
+        rolls <- sample(1:N_corners,N_points, replace = TRUE)  #generate the rolls in one call
+        xy_pts <- matrix(0,N_points+1,2) #initiate array
+        cnt <- 1
+        xy_pts[cnt,1] <- runif(1,-1,1)#pick a random starting point 
+        xy_pts[cnt,2] <- runif(1,-1,1)
+        for (r in rolls){
+                cnt <- cnt + 1
+                xy_pts[cnt,1] <-  xy_pts[cnt-1,1] + step_factor*(x_corner[r] - xy_pts[cnt-1,1])
+                xy_pts[cnt,2] <-  xy_pts[cnt-1,2] + step_factor*(y_corner[r] - xy_pts[cnt-1,2])
+        }
+        return(xy_pts)
+}
+```
+
+## Interactive Plot
+
+```{r gasket}
+inputPanel(
+  selectInput("n_corners", label = "Number of cornerss:",
+              choices = c(seq(from = 3, to = 10, by = 1)), selected = 3),
+  
+  sliderInput("step_adjust", label = "Step Size:",
+              min = 0.1, max = 2, value = 0.5, step = 0.05),
+  
+  sliderInput("number_of_points", label = "Step Size:",
+              min = 10, max = 1000000, value = 100000, step = 1)
+)
+
+renderPlot({
+
+  corners <- get_corners(as.numeric(input$n_corners))
+  step_size <- as.numeric(input$step_adjust)
+  n_points <- as.numeric(input$number_of_points)
+  xy_pts <- gasket_xy_pts(corners,n_points,step_size)
+  par(pty="s")
+  plot(xy_pts[,1],xy_pts[,2],pch = '.')
+  points(corners,pch = 'o',col = 'blue') 
+  points(xy_pts[1,1],xy_pts[1,2],pch = 'x',col = 'red') 
+  
+  # hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
+  #      xlab = "Duration (minutes)", main = "Geyser eruption duration")
+  # 
+  # dens <- density(faithful$eruptions, adjust = input$bw_adjust)
+  # lines(dens, col = "blue")
+})
+```
+
+
+
+
+
